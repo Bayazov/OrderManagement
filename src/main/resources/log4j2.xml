@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </Console>
+        <File name="File" fileName="logs/app.log">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </File>
+        <JDBC name="Database" tableName="logs">
+            <ConnectionFactory class="com.example.ordermanagement.infrastructure.config.LoggingConnectionFactory" method="getConnection" />
+            <Column name="date" isEventTimestamp="true" />
+            <Column name="level" pattern="%level" />
+            <Column name="message" pattern="%message" />
+            <Column name="exception" pattern="%ex{full}" />
+        </JDBC>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="File"/>
+            <AppenderRef ref="Database"/>
+        </Root>
+    </Loggers>
+</Configuration>
+

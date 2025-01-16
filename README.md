@@ -1,22 +1,25 @@
 # Order Management System
 
-This project is a REST API service for managing orders, implemented using Spring Boot and following Clean Architecture principles.
+Это REST API сервис для управления заказами, разработанный с использованием Java 17 и Spring Boot.
 
-## Features
+## Особенности
 
-- CRUD operations for orders
-- Filtering orders by status and price range
-- Basic authentication
-- Caching
-- Logging
-- Metrics
-- API documentation with Swagger/OpenAPI
+- CRUD операции для управления заказами
+- Авторизация с ролями User и Admin
+- In-memory кэширование
+- Логирование в файл и БД
+- Обработка событий
+- Валидация входных данных
+- Обработка исключений
+- Метрики (Micrometer)
+- Документация API (Swagger/OpenAPI)
+- Модульные тесты
 
-## Prerequisites
+## Требования
 
 - Java 17
 - Maven
-- Git
+- Docker 
 
 ## Getting Started
 
