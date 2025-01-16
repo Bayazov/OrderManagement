@@ -14,14 +14,16 @@ public class LoggingAspect {
 
     private static final Logger logger = LoggerFactory.getLogger(LoggingAspect.class);
 
-    @Before("execution(* com.example.ordermanagement.application.OrderService.*(..))")
+    @Before("execution(* com.example.ordermanagement.application.service.OrderService.*(..))")
     public void logBeforeAllMethods(JoinPoint joinPoint) {
         logger.info("Executing {} with arguments {}", joinPoint.getSignature().getName(), joinPoint.getArgs());
     }
 
-    @AfterReturning(pointcut = "execution(* com.example.ordermanagement.application.OrderService.*(..))", returning = "result")
+    @AfterReturning(pointcut = "execution(* com.example.ordermanagement.application.service.OrderService.*(..))", returning = "result")
     public void logAfterAllMethods(JoinPoint joinPoint, Object result) {
         logger.info("{} returned {}", joinPoint.getSignature().getName(), result);
     }
 }
+
+
 
