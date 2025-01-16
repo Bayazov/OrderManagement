@@ -1,4 +1,4 @@
-package com.example.ordermanagement.infrastructure;
+package com.example.ordermanagement.infrastructure.config;
 
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;

@@ -1,5 +1,6 @@
-package com.example.ordermanagement.domain;
+package com.example.ordermanagement.domain.event;
 
+import com.example.ordermanagement.domain.model.Order;
 import lombok.Data;
 
 @Data

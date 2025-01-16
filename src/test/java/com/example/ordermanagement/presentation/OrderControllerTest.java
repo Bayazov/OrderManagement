@@ -1,10 +1,8 @@
 package com.example.ordermanagement.presentation;
 
 import com.example.ordermanagement.application.OrderService;
-import com.example.ordermanagement.domain.Order;
-import com.example.ordermanagement.domain.Product;
+import com.example.ordermanagement.domain.model.Order;
 import com.example.ordermanagement.presentation.dto.OrderDTO;
-import com.example.ordermanagement.presentation.dto.ProductDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;

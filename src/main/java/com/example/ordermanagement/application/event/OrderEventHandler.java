@@ -1,6 +1,6 @@
-package com.example.ordermanagement.application;
+package com.example.ordermanagement.application.event;
 
-import com.example.ordermanagement.domain.OrderStatusChangedEvent;
+import com.example.ordermanagement.domain.event.OrderStatusChangedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;

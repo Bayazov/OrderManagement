@@ -1,4 +1,4 @@
-package com.example.ordermanagement.infrastructure;
+package com.example.ordermanagement.infrastructure.config;
 
 import io.micrometer.core.aop.TimedAspect;
 import io.micrometer.core.instrument.MeterRegistry;

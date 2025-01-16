@@ -1,8 +1,8 @@
-package com.example.ordermanagement.application;
+package com.example.ordermanagement.application.service;
 
-import com.example.ordermanagement.domain.Order;
-import com.example.ordermanagement.domain.OrderRepository;
-import com.example.ordermanagement.domain.Product;
+import com.example.ordermanagement.domain.model.Order;
+import com.example.ordermanagement.domain.repository.OrderRepository;
+import com.example.ordermanagement.domain.event.OrderStatusChangedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -17,7 +17,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-class OrderServiceImplTest {
+class OrderServiceTest {
 
     @Mock
     private OrderRepository orderRepository;
@@ -25,12 +25,12 @@ class OrderServiceImplTest {
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
-    private OrderServiceImpl orderService;
+    private OrderService orderService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        orderService = new OrderServiceImpl(orderRepository, eventPublisher);
+        orderService = new OrderService(orderRepository, eventPublisher);
     }
 
     @Test
@@ -79,7 +79,7 @@ class OrderServiceImplTest {
 
         verify(orderRepository, times(1)).findById(orderId);
         verify(orderRepository, times(1)).save(any(Order.class));
-        verify(eventPublisher, times(1)).publishEvent(any());
+        verify(eventPublisher, times(1)).publishEvent(any(OrderStatusChangedEvent.class));
     }
 
     @Test

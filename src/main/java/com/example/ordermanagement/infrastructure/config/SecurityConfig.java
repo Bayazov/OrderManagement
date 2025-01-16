@@ -1,4 +1,4 @@
-package com.example.ordermanagement.infrastructure;
+package com.example.ordermanagement.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

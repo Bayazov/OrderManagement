@@ -1,4 +1,4 @@
-package com.example.ordermanagement.domain;
+package com.example.ordermanagement.domain.model;
 
 import lombok.Data;
 import jakarta.persistence.*;
