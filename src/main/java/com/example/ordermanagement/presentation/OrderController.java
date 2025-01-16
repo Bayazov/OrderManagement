@@ -5,6 +5,13 @@ import com.example.ordermanagement.domain.Order;
 import com.example.ordermanagement.domain.Product;
 import com.example.ordermanagement.presentation.dto.OrderDTO;
 import com.example.ordermanagement.presentation.dto.ProductDTO;
+import io.micrometer.core.annotation.Timed;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +22,8 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/orders")
+@Timed("orders")
+@Tag(name = "Order", description = "Order management API")
 public class OrderController {
 
     private final OrderService orderService;
@@ -25,6 +34,10 @@ public class OrderController {
     }
 
     @PostMapping
+    @Timed(value = "orders.create", description = "Time taken to create an order")
+    @Operation(summary = "Create a new order", description = "Creates a new order with the given details")
+    @ApiResponse(responseCode = "200", description = "Order created successfully",
+            content = @Content(schema = @Schema(implementation = OrderDTO.class)))
     public ResponseEntity<OrderDTO> createOrder(@RequestBody OrderDTO orderDTO) {
         Order order = convertToEntity(orderDTO);
         Order createdOrder = orderService.createOrder(order);
@@ -32,17 +45,27 @@ public class OrderController {
     }
 
     @PutMapping("/{orderId}")
-    public ResponseEntity<OrderDTO> updateOrder(@PathVariable Long orderId, @RequestBody OrderDTO orderDTO) {
+    @Timed(value = "orders.update", description = "Time taken to update an order")
+    @Operation(summary = "Update an existing order", description = "Updates an existing order with the given details")
+    @ApiResponse(responseCode = "200", description = "Order updated successfully",
+            content = @Content(schema = @Schema(implementation = OrderDTO.class)))
+    public ResponseEntity<OrderDTO> updateOrder(
+            @Parameter(description = "ID of the order to update") @PathVariable Long orderId,
+            @RequestBody OrderDTO orderDTO) {
         Order order = convertToEntity(orderDTO);
         Order updatedOrder = orderService.updateOrder(orderId, order);
         return ResponseEntity.ok(convertToDTO(updatedOrder));
     }
 
     @GetMapping
+    @Timed(value = "orders.get", description = "Time taken to get orders")
+    @Operation(summary = "Get orders", description = "Retrieves a list of orders based on optional filters")
+    @ApiResponse(responseCode = "200", description = "Orders retrieved successfully",
+            content = @Content(schema = @Schema(implementation = OrderDTO.class)))
     public ResponseEntity<List<OrderDTO>> getOrders(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) BigDecimal minPrice,
-            @RequestParam(required = false) BigDecimal maxPrice) {
+            @Parameter(description = "Status of the order") @RequestParam(required = false) String status,
+            @Parameter(description = "Minimum price of the order") @RequestParam(required = false) BigDecimal minPrice,
+            @Parameter(description = "Maximum price of the order") @RequestParam(required = false) BigDecimal maxPrice) {
         Order.OrderStatus orderStatus = status != null ? Order.OrderStatus.valueOf(status.toUpperCase()) : null;
         List<Order> orders = orderService.getOrders(orderStatus, minPrice, maxPrice);
         List<OrderDTO> orderDTOs = orders.stream()
@@ -52,13 +75,22 @@ public class OrderController {
     }
 
     @GetMapping("/{orderId}")
-    public ResponseEntity<OrderDTO> getOrderById(@PathVariable Long orderId) {
+    @Timed(value = "orders.get.by.id", description = "Time taken to get an order by id")
+    @Operation(summary = "Get an order by ID", description = "Retrieves an order by its ID")
+    @ApiResponse(responseCode = "200", description = "Order retrieved successfully",
+            content = @Content(schema = @Schema(implementation = OrderDTO.class)))
+    public ResponseEntity<OrderDTO> getOrderById(
+            @Parameter(description = "ID of the order to retrieve") @PathVariable Long orderId) {
         Order order = orderService.getOrderById(orderId);
         return ResponseEntity.ok(convertToDTO(order));
     }
 
     @DeleteMapping("/{orderId}")
-    public ResponseEntity<Void> deleteOrder(@PathVariable Long orderId) {
+    @Timed(value = "orders.delete", description = "Time taken to delete an order")
+    @Operation(summary = "Delete an order", description = "Deletes an order by its ID")
+    @ApiResponse(responseCode = "204", description = "Order deleted successfully")
+    public ResponseEntity<Void> deleteOrder(
+            @Parameter(description = "ID of the order to delete") @PathVariable Long orderId) {
         orderService.deleteOrder(orderId);
         return ResponseEntity.noContent().build();
     }
@@ -111,4 +143,6 @@ public class OrderController {
         return productDTO;
     }
 }
+
+
 
