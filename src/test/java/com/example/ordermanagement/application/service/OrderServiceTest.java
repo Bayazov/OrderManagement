@@ -1,6 +1,7 @@
 package com.example.ordermanagement.application.service;
 
 import com.example.ordermanagement.domain.model.Order;
+import com.example.ordermanagement.domain.model.Product;
 import com.example.ordermanagement.domain.repository.OrderRepository;
 import com.example.ordermanagement.domain.event.OrderStatusChangedEvent;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,6 +11,7 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -35,10 +37,21 @@ class OrderServiceTest {
 
     @Test
     void createOrder_ShouldSaveAndReturnOrder() {
+        // Создаем тестовый заказ
         Order order = new Order();
         order.setCustomerName("John Doe");
         order.setStatus(Order.OrderStatus.PENDING);
         order.setTotalPrice(BigDecimal.valueOf(100));
+
+        // Создаем тестовый продукт
+        List<Product> products = new ArrayList<>();
+        Product product = new Product();
+        product.setName("Test Product");
+        product.setPrice(BigDecimal.valueOf(50));
+        product.setQuantity(1);
+        products.add(product);
+
+        order.setProducts(products);
 
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
@@ -48,6 +61,9 @@ class OrderServiceTest {
         assertEquals("John Doe", createdOrder.getCustomerName());
         assertEquals(Order.OrderStatus.PENDING, createdOrder.getStatus());
         assertEquals(BigDecimal.valueOf(100), createdOrder.getTotalPrice());
+        assertNotNull(createdOrder.getProducts());
+        assertEquals(1, createdOrder.getProducts().size());
+        assertEquals("Test Product", createdOrder.getProducts().get(0).getName());
 
         verify(orderRepository, times(1)).save(order);
     }
@@ -55,17 +71,34 @@ class OrderServiceTest {
     @Test
     void updateOrder_ShouldUpdateAndReturnOrder() {
         Long orderId = 1L;
+
+        // Создаем существующий заказ
         Order existingOrder = new Order();
         existingOrder.setOrderId(orderId);
         existingOrder.setCustomerName("John Doe");
         existingOrder.setStatus(Order.OrderStatus.PENDING);
         existingOrder.setTotalPrice(BigDecimal.valueOf(100));
+        List<Product> existingProducts = new ArrayList<>();
+        Product existingProduct = new Product();
+        existingProduct.setName("Existing Product");
+        existingProduct.setPrice(BigDecimal.valueOf(100));
+        existingProduct.setQuantity(1);
+        existingProducts.add(existingProduct);
+        existingOrder.setProducts(existingProducts);
 
+        // Создаем обновленный заказ
         Order updatedOrder = new Order();
         updatedOrder.setOrderId(orderId);
         updatedOrder.setCustomerName("Jane Doe");
         updatedOrder.setStatus(Order.OrderStatus.CONFIRMED);
         updatedOrder.setTotalPrice(BigDecimal.valueOf(150));
+        List<Product> updatedProducts = new ArrayList<>();
+        Product updatedProduct = new Product();
+        updatedProduct.setName("Updated Product");
+        updatedProduct.setPrice(BigDecimal.valueOf(150));
+        updatedProduct.setQuantity(1);
+        updatedProducts.add(updatedProduct);
+        updatedOrder.setProducts(updatedProducts);
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
         when(orderRepository.save(any(Order.class))).thenReturn(updatedOrder);
@@ -88,9 +121,24 @@ class OrderServiceTest {
         BigDecimal minPrice = BigDecimal.valueOf(50);
         BigDecimal maxPrice = BigDecimal.valueOf(150);
 
+        // Создаем тестовые заказы с продуктами
+        List<Product> products1 = new ArrayList<>();
+        Product product1 = new Product();
+        product1.setName("Product 1");
+        product1.setPrice(BigDecimal.valueOf(100));
+        product1.setQuantity(1);
+        products1.add(product1);
+
+        List<Product> products2 = new ArrayList<>();
+        Product product2 = new Product();
+        product2.setName("Product 2");
+        product2.setPrice(BigDecimal.valueOf(200));
+        product2.setQuantity(1);
+        products2.add(product2);
+
         List<Order> orders = Arrays.asList(
-                new Order(1L, "John Doe", Order.OrderStatus.PENDING, BigDecimal.valueOf(100), null),
-                new Order(2L, "Jane Doe", Order.OrderStatus.CONFIRMED, BigDecimal.valueOf(200), null)
+                new Order(1L, "John Doe", Order.OrderStatus.PENDING, BigDecimal.valueOf(100), products1),
+                new Order(2L, "Jane Doe", Order.OrderStatus.CONFIRMED, BigDecimal.valueOf(200), products2)
         );
 
         when(orderRepository.findByStatusAndPriceRange(status, minPrice, maxPrice)).thenReturn(orders);
@@ -108,7 +156,16 @@ class OrderServiceTest {
     @Test
     void getOrderById_ShouldReturnOrder() {
         Long orderId = 1L;
-        Order order = new Order(orderId, "John Doe", Order.OrderStatus.PENDING, BigDecimal.valueOf(100), null);
+
+        // Создаем тестовый заказ с продуктом
+        List<Product> products = new ArrayList<>();
+        Product product = new Product();
+        product.setName("Test Product");
+        product.setPrice(BigDecimal.valueOf(100));
+        product.setQuantity(1);
+        products.add(product);
+
+        Order order = new Order(orderId, "John Doe", Order.OrderStatus.PENDING, BigDecimal.valueOf(100), products);
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
 
@@ -126,7 +183,16 @@ class OrderServiceTest {
     @Test
     void deleteOrder_ShouldCancelOrder() {
         Long orderId = 1L;
-        Order order = new Order(orderId, "John Doe", Order.OrderStatus.PENDING, BigDecimal.valueOf(100), null);
+
+        // Создаем тестовый заказ с продуктом
+        List<Product> products = new ArrayList<>();
+        Product product = new Product();
+        product.setName("Test Product");
+        product.setPrice(BigDecimal.valueOf(100));
+        product.setQuantity(1);
+        products.add(product);
+
+        Order order = new Order(orderId, "John Doe", Order.OrderStatus.PENDING, BigDecimal.valueOf(100), products);
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
@@ -139,4 +205,5 @@ class OrderServiceTest {
         verify(orderRepository, times(1)).save(order);
     }
 }
+
 

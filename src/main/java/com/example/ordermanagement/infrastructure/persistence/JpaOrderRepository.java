@@ -1,7 +1,7 @@
 package com.example.ordermanagement.infrastructure.persistence;
 
 import com.example.ordermanagement.domain.model.Order;
-import com.example.ordermanagement.domain.OrderRepository;
+import com.example.ordermanagement.domain.repository.OrderRepository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
