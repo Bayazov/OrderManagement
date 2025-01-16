@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import com.example.ordermanagement.domain.exception.OrderNotFoundException;
+import com.example.ordermanagement.domain.exception.InvalidOrderException;
 
 @Service
 public class OrderService {
@@ -26,13 +28,15 @@ public class OrderService {
 
     @CacheEvict(value = "orders", allEntries = true)
     public Order createOrder(Order order) {
+        validateOrder(order);
         return orderRepository.save(order);
     }
 
     @CacheEvict(value = "orders", key = "#id")
     public Order updateOrder(Long id, Order order) {
+        validateOrder(order);
         Order existingOrder = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new OrderNotFoundException(id));
 
         Order.OrderStatus oldStatus = existingOrder.getStatus();
 
@@ -58,15 +62,26 @@ public class OrderService {
     @Cacheable(value = "orders", key = "#id")
     public Order getOrderById(Long id) {
         return orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new OrderNotFoundException(id));
     }
 
     @CacheEvict(value = "orders", key = "#id")
     public void deleteOrder(Long id) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> new OrderNotFoundException(id));
         order.setStatus(Order.OrderStatus.CANCELLED);
         orderRepository.save(order);
     }
+
+    private void validateOrder(Order order) {
+        if (order.getProducts() == null || order.getProducts().isEmpty()) {
+            throw new InvalidOrderException("Order must contain at least one product");
+        }
+        if (order.getTotalPrice() == null || order.getTotalPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidOrderException("Total price must be positive");
+        }
+        // Добавьте дополнительные проверки по необходимости
+    }
 }
+
 

@@ -1,7 +1,9 @@
 package com.example.ordermanagement.presentation;
 
-import com.example.ordermanagement.application.OrderService;
+
+import com.example.ordermanagement.application.service.OrderService;
 import com.example.ordermanagement.domain.model.Order;
+import com.example.ordermanagement.presentation.controller.OrderController;
 import com.example.ordermanagement.presentation.dto.OrderDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

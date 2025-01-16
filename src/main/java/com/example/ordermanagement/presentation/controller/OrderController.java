@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,7 +38,7 @@ public class OrderController {
             @ApiResponse(responseCode = "200", description = "Order created successfully", content = @Content(schema = @Schema(implementation = OrderDTO.class))),
             @ApiResponse(responseCode = "400", description = "Invalid order data")
     })
-    public ResponseEntity<OrderDTO> createOrder(@RequestBody OrderDTO orderDTO) {
+    public ResponseEntity<OrderDTO> createOrder(@Valid @RequestBody OrderDTO orderDTO) {
         Order order = convertToEntity(orderDTO);
         Order createdOrder = orderService.createOrder(order);
         return ResponseEntity.ok(convertToDTO(createdOrder));
@@ -50,7 +51,7 @@ public class OrderController {
             @ApiResponse(responseCode = "400", description = "Invalid order data"),
             @ApiResponse(responseCode = "404", description = "Order not found")
     })
-    public ResponseEntity<OrderDTO> updateOrder(@PathVariable Long orderId, @RequestBody OrderDTO orderDTO) {
+    public ResponseEntity<OrderDTO> updateOrder(@PathVariable Long orderId, @Valid @RequestBody OrderDTO orderDTO) {
         Order order = convertToEntity(orderDTO);
         Order updatedOrder = orderService.updateOrder(orderId, order);
         return ResponseEntity.ok(convertToDTO(updatedOrder));
