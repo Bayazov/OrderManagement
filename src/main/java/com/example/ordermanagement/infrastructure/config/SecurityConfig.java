@@ -30,7 +30,8 @@ public class SecurityConfig {
                         .requestMatchers("/metrics").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
-                .httpBasic(basic -> {});  // Используем новый синтаксис
+                .httpBasic(basic -> {
+                });  // Используем новый синтаксис
 
         return http.build();
     }
@@ -57,5 +58,4 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
-
 
