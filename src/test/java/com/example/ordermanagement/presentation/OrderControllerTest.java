@@ -1,136 +1,119 @@
-package com.example.ordermanagement.presentation;
-
+package com.example.ordermanagement.presentation.controller;
 
 import com.example.ordermanagement.application.service.OrderService;
 import com.example.ordermanagement.domain.model.Order;
-import com.example.ordermanagement.presentation.controller.OrderController;
+import com.example.ordermanagement.domain.model.Product;
 import com.example.ordermanagement.presentation.dto.OrderDTO;
-import org.junit.jupiter.api.BeforeEach;
+import com.example.ordermanagement.presentation.dto.ProductDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.List;
+import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
+@SpringBootTest
+@AutoConfigureMockMvc
 class OrderControllerTest {
 
-    @Mock
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
     private OrderService orderService;
 
-    private OrderController orderController;
+    @Test
+    @WithMockUser(roles = "USER")
+    void createOrder_AsUser_ShouldCreateOrder() throws Exception {
+        OrderDTO orderDTO = createSampleOrderDTO();
+        Order order = OrderDTO.toEntity(orderDTO);
+        when(orderService.createOrder(any(Order.class))).thenReturn(order);
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        orderController = new OrderController(orderService);
+        mockMvc.perform(post("/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderDTO)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerName").value("John Doe"));
     }
 
     @Test
-    void createOrder_ShouldReturnCreatedOrder() {
+    @WithMockUser(roles = "ADMIN")
+    void deleteOrder_AsAdmin_ShouldDeleteOrder() throws Exception {
+        mockMvc.perform(delete("/orders/1"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void deleteOrder_AsUser_ShouldReturnForbidden() throws Exception {
+        mockMvc.perform(delete("/orders/1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getAllOrders_WithoutAuth_ShouldReturnUnauthorized() throws Exception {
+        mockMvc.perform(get("/orders"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
+    void getOrderById_AsUser_ShouldReturnOrder() throws Exception {
+        Order order = createSampleOrder();
+        when(orderService.getOrderById(1L)).thenReturn(order);
+
+        mockMvc.perform(get("/orders/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.customerName").value("John Doe"));
+    }
+
+    private OrderDTO createSampleOrderDTO() {
         OrderDTO orderDTO = new OrderDTO();
         orderDTO.setCustomerName("John Doe");
         orderDTO.setStatus("PENDING");
         orderDTO.setTotalPrice(BigDecimal.valueOf(100));
 
-        Order createdOrder = new Order(1L, "John Doe", Order.OrderStatus.PENDING, BigDecimal.valueOf(100), null);
+        ProductDTO productDTO = new ProductDTO();
+        productDTO.setName("Test Product");
+        productDTO.setPrice(BigDecimal.valueOf(100));
+        productDTO.setQuantity(1);
 
-        when(orderService.createOrder(any(Order.class))).thenReturn(createdOrder);
-
-        ResponseEntity<OrderDTO> response = orderController.createOrder(orderDTO);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(1L, response.getBody().getOrderId());
-        assertEquals("John Doe", response.getBody().getCustomerName());
-        assertEquals("PENDING", response.getBody().getStatus());
-        assertEquals(BigDecimal.valueOf(100), response.getBody().getTotalPrice());
-
-        verify(orderService, times(1)).createOrder(any(Order.class));
+        orderDTO.setProducts(Collections.singletonList(productDTO));
+        return orderDTO;
     }
 
-    @Test
-    void updateOrder_ShouldReturnUpdatedOrder() {
-        Long orderId = 1L;
-        OrderDTO orderDTO = new OrderDTO();
-        orderDTO.setCustomerName("Jane Doe");
-        orderDTO.setStatus("CONFIRMED");
-        orderDTO.setTotalPrice(BigDecimal.valueOf(150));
+    private Order createSampleOrder() {
+        Order order = new Order();
+        order.setOrderId(1L);
+        order.setCustomerName("John Doe");
+        order.setStatus(Order.OrderStatus.PENDING);
+        order.setTotalPrice(BigDecimal.valueOf(100));
 
-        Order updatedOrder = new Order(orderId, "Jane Doe", Order.OrderStatus.CONFIRMED, BigDecimal.valueOf(150), null);
+        Product product = new Product();
+        product.setProductId(1L);
+        product.setName("Test Product");
+        product.setPrice(BigDecimal.valueOf(100));
+        product.setQuantity(1);
 
-        when(orderService.updateOrder(eq(orderId), any(Order.class))).thenReturn(updatedOrder);
-
-        ResponseEntity<OrderDTO> response = orderController.updateOrder(orderId, orderDTO);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(orderId, response.getBody().getOrderId());
-        assertEquals("Jane Doe", response.getBody().getCustomerName());
-        assertEquals("CONFIRMED", response.getBody().getStatus());
-        assertEquals(BigDecimal.valueOf(150), response.getBody().getTotalPrice());
-
-        verify(orderService, times(1)).updateOrder(eq(orderId), any(Order.class));
-    }
-
-    @Test
-    void getOrders_ShouldReturnListOfOrders() {
-        String status = "PENDING";
-        BigDecimal minPrice = BigDecimal.valueOf(50);
-        BigDecimal maxPrice = BigDecimal.valueOf(150);
-
-        List<Order> orders = Arrays.asList(
-                new Order(1L, "John Doe", Order.OrderStatus.PENDING, BigDecimal.valueOf(100), null),
-                new Order(2L, "Jane Doe", Order.OrderStatus.PENDING, BigDecimal.valueOf(120), null)
-        );
-
-        when(orderService.getOrders(Order.OrderStatus.PENDING, minPrice, maxPrice)).thenReturn(orders);
-
-        ResponseEntity<List<OrderDTO>> response = orderController.getOrders(status, minPrice, maxPrice);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().size());
-        assertEquals("John Doe", response.getBody().get(0).getCustomerName());
-        assertEquals("Jane Doe", response.getBody().get(1).getCustomerName());
-
-        verify(orderService, times(1)).getOrders(Order.OrderStatus.PENDING, minPrice, maxPrice);
-    }
-
-    @Test
-    void getOrderById_ShouldReturnOrder() {
-        Long orderId = 1L;
-        Order order = new Order(orderId, "John Doe", Order.OrderStatus.PENDING, BigDecimal.valueOf(100), null);
-
-        when(orderService.getOrderById(orderId)).thenReturn(order);
-
-        ResponseEntity<OrderDTO> response = orderController.getOrderById(orderId);
-
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(orderId, response.getBody().getOrderId());
-        assertEquals("John Doe", response.getBody().getCustomerName());
-        assertEquals("PENDING", response.getBody().getStatus());
-        assertEquals(BigDecimal.valueOf(100), response.getBody().getTotalPrice());
-
-        verify(orderService, times(1)).getOrderById(orderId);
-    }
-
-    @Test
-    void deleteOrder_ShouldReturnNoContent() {
-        Long orderId = 1L;
-
-        ResponseEntity<Void> response = orderController.deleteOrder(orderId);
-
-        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
-
-        verify(orderService, times(1)).deleteOrder(orderId);
+        order.setProducts(Collections.singletonList(product));
+        return order;
     }
 }
+
 

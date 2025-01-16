@@ -2,6 +2,7 @@ package com.example.ordermanagement.infrastructure.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.User;
@@ -14,6 +15,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
@@ -21,10 +23,12 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/login", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/orders/**").authenticated()
+                        .requestMatchers("/metrics").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
-                .httpBasic(basic -> {});
+                .httpBasic();
 
         return http.build();
     }
@@ -51,3 +55,4 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
+
