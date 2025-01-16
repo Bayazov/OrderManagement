@@ -3,7 +3,6 @@ package com.example.ordermanagement.presentation.controller;
 import com.example.ordermanagement.application.service.OrderService;
 import com.example.ordermanagement.domain.model.Order;
 import com.example.ordermanagement.presentation.dto.OrderDTO;
-
 import io.micrometer.core.annotation.Timed;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -38,6 +37,7 @@ public class OrderController {
             @ApiResponse(responseCode = "400", description = "Invalid order data")
     })
     public ResponseEntity<OrderDTO> createOrder(@Valid @RequestBody OrderDTO orderDTO) {
+        // Создаем новый заказ
         Order order = orderService.createOrder(OrderDTO.toEntity(orderDTO));
         return ResponseEntity.ok(OrderDTO.fromEntity(order));
     }
@@ -50,6 +50,7 @@ public class OrderController {
             @ApiResponse(responseCode = "404", description = "Order not found")
     })
     public ResponseEntity<OrderDTO> updateOrder(@PathVariable Long orderId, @Valid @RequestBody OrderDTO orderDTO) {
+        // Обновляем существующий заказ
         Order order = orderService.updateOrder(orderId, OrderDTO.toEntity(orderDTO));
         return ResponseEntity.ok(OrderDTO.fromEntity(order));
     }
@@ -64,6 +65,7 @@ public class OrderController {
             @Parameter(description = "Order status") @RequestParam(required = false) String status,
             @Parameter(description = "Minimum order price") @RequestParam(required = false) BigDecimal minPrice,
             @Parameter(description = "Maximum order price") @RequestParam(required = false) BigDecimal maxPrice) {
+        // Получаем список заказов с фильтрацией
         Order.OrderStatus orderStatus = status != null ? Order.OrderStatus.valueOf(status.toUpperCase()) : null;
         List<Order> orders = orderService.getOrders(orderStatus, minPrice, maxPrice);
         return ResponseEntity.ok(orders.stream().map(OrderDTO::fromEntity).toList());
@@ -76,6 +78,7 @@ public class OrderController {
             @ApiResponse(responseCode = "404", description = "Order not found")
     })
     public ResponseEntity<OrderDTO> getOrderById(@PathVariable Long orderId) {
+        // Получаем заказ по ID
         Order order = orderService.getOrderById(orderId);
         return ResponseEntity.ok(OrderDTO.fromEntity(order));
     }
@@ -87,6 +90,7 @@ public class OrderController {
             @ApiResponse(responseCode = "404", description = "Order not found")
     })
     public ResponseEntity<Void> deleteOrder(@PathVariable Long orderId) {
+        // Удаляем заказ по ID
         orderService.deleteOrder(orderId);
         return ResponseEntity.noContent().build();
     }
