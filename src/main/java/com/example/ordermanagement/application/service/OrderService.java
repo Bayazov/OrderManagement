@@ -30,7 +30,7 @@ public class OrderService {
     public Order createOrder(Order order) {
         // Валидируем заказ
         validateOrder(order);
-        // Сохраняем новый заказ
+        order.setDeleted(false); // Устанавливаем флаг удаления в false при создании
         return orderRepository.save(order);
     }
 
@@ -79,8 +79,9 @@ public class OrderService {
         // Находим заказ по ID
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new OrderNotFoundException(id));
-        // Устанавливаем статус "CANCELLED"
+        // Устанавливаем статус "CANCELLED" и помечаем как удаленный
         order.setStatus(Order.OrderStatus.CANCELLED);
+        order.setDeleted(true);
         // Сохраняем обновленный заказ
         orderRepository.save(order);
     }
@@ -94,7 +95,6 @@ public class OrderService {
         if (order.getTotalPrice() == null || order.getTotalPrice().compareTo(BigDecimal.ZERO) <= 0) {
             throw new InvalidOrderException("Total price must be positive");
         }
-        // Здесь могут быть дополнительные проверки
     }
 }
 

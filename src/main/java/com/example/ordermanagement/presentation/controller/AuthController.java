@@ -10,8 +10,13 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<String> login(Authentication authentication) {
-        // Генерация JWT токен
-        return ResponseEntity.ok("User authenticated: " + authentication.getName());
+        // Проверяем, что объект authentication не null и пользователь аутентифицирован
+        if (authentication != null && authentication.isAuthenticated()) {
+            return ResponseEntity.ok("User authenticated: " + authentication.getName());
+        } else {
+            return ResponseEntity.status(401).body("Authentication failed");
+        }
     }
 }
+
 

@@ -9,12 +9,13 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    // Находим заказы по статусу и диапазону цен
-    @Query("SELECT o FROM Order o WHERE (:status IS NULL OR o.status = :status) " +
+    @Query("SELECT o FROM Order o WHERE o.deleted = false " +
+            "AND (:status IS NULL OR o.status = :status) " +
             "AND (:minPrice IS NULL OR o.totalPrice >= :minPrice) " +
             "AND (:maxPrice IS NULL OR o.totalPrice <= :maxPrice)")
     List<Order> findByStatusAndPriceRange(@Param("status") Order.OrderStatus status,
                                           @Param("minPrice") BigDecimal minPrice,
                                           @Param("maxPrice") BigDecimal maxPrice);
 }
+
 
