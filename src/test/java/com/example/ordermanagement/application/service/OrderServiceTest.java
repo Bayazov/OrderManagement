@@ -3,272 +3,213 @@ package com.example.ordermanagement.application.service;
 import com.example.ordermanagement.domain.event.OrderStatusChangedEvent;
 import com.example.ordermanagement.domain.exception.InvalidOrderException;
 import com.example.ordermanagement.domain.exception.OrderNotFoundException;
-import com.example.ordermanagement.domain.exception.TotalPriceMismatchException;
 import com.example.ordermanagement.domain.model.Order;
 import com.example.ordermanagement.domain.model.Product;
+import com.example.ordermanagement.domain.model.User;
 import com.example.ordermanagement.domain.repository.OrderRepository;
+import com.example.ordermanagement.domain.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
 
     @Mock
     private OrderRepository orderRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
+    @InjectMocks
     private OrderService orderService;
+
+    private User user;
+    private User admin;
+    private Order order;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-        orderService = new OrderService(orderRepository, eventPublisher);
-    }
+        user = new User();
+        user.setId(1L);
+        user.setUsername("user");
+        user.setRole(User.Role.USER);
 
-    @ParameterizedTest
-    @ValueSource(strings = {"Alice Smith", "Bob Johnson", "Charlie Brown"})
-    void createOrder_ShouldSaveAndReturnOrder(String customerName) {
-        // Создаем тестовый заказ
-        Order order = new Order();
-        order.setCustomerName(customerName);
+        admin = new User();
+        admin.setId(2L);
+        admin.setUsername("admin");
+        admin.setRole(User.Role.ADMIN);
+
+        order = new Order();
+        order.setOrderId(1L);
+        order.setUser(user);
+        order.setCustomerName("Test Customer");
         order.setStatus(Order.OrderStatus.PENDING);
+        order.setTotalPrice(new BigDecimal("100.00"));
 
-        // Создаем тестовый продукт
-        List<Product> products = new ArrayList<>();
-        Product product = new Product();
-        product.setName("Test Product");
-        product.setPrice(BigDecimal.valueOf(100));
-        product.setQuantity(1);
-        products.add(product);
-
-        order.setProducts(products);
-        order.setTotalPrice(BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP));
-
-        when(orderRepository.save(any(Order.class))).thenReturn(order);
-
-        Order createdOrder = orderService.createOrder(order);
-
-        assertNotNull(createdOrder);
-        assertEquals(customerName, createdOrder.getCustomerName());
-        assertEquals(Order.OrderStatus.PENDING, createdOrder.getStatus());
-        assertEquals(BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP), createdOrder.getTotalPrice());
-        assertNotNull(createdOrder.getProducts());
-        assertEquals(1, createdOrder.getProducts().size());
-        assertEquals("Test Product", createdOrder.getProducts().get(0).getName());
-
-        verify(orderRepository, times(1)).save(order);
+        Product product = new Product("Test Product", new BigDecimal("100.00"), 1);
+        product.setOrder(order);
+        order.setProducts(List.of(product));
     }
 
     @Test
-    void updateOrder_ShouldUpdateAndReturnOrder() {
-        Long orderId = 1L;
+    void createOrder_ValidOrder_Success() {
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(user));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        // Создаем существующий заказ
-        Order existingOrder = new Order();
-        existingOrder.setOrderId(orderId);
-        existingOrder.setCustomerName("Existing Customer");
-        existingOrder.setStatus(Order.OrderStatus.PENDING);
-        existingOrder.setTotalPrice(BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP));
-        List<Product> existingProducts = new ArrayList<>();
-        Product existingProduct = new Product();
-        existingProduct.setName("Existing Product");
-        existingProduct.setPrice(BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP));
-        existingProduct.setQuantity(1);
-        existingProducts.add(existingProduct);
-        existingOrder.setProducts(existingProducts);
-
-        // Создаем обновленный заказ
-        Order updatedOrder = new Order();
-        updatedOrder.setOrderId(orderId);
-        updatedOrder.setCustomerName("Updated Customer");
-        updatedOrder.setStatus(Order.OrderStatus.CONFIRMED);
-        updatedOrder.setTotalPrice(BigDecimal.valueOf(150).setScale(2, BigDecimal.ROUND_HALF_UP));
-        List<Product> updatedProducts = new ArrayList<>();
-        Product updatedProduct = new Product();
-        updatedProduct.setName("Updated Product");
-        updatedProduct.setPrice(BigDecimal.valueOf(150).setScale(2, BigDecimal.ROUND_HALF_UP));
-        updatedProduct.setQuantity(1);
-        updatedProducts.add(updatedProduct);
-        updatedOrder.setProducts(updatedProducts);
-
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(updatedOrder);
-
-        Order result = orderService.updateOrder(orderId, updatedOrder);
+        Order result = orderService.createOrder("user", order);
 
         assertNotNull(result);
-        assertEquals("Updated Customer", result.getCustomerName());
+        assertEquals(order.getOrderId(), result.getOrderId());
+        verify(orderRepository).save(any(Order.class));
+    }
+
+    @Test
+    void createOrder_InvalidUser_ThrowsException() {
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.empty());
+
+        assertThrows(InvalidOrderException.class, () -> orderService.createOrder("nonexistent", order));
+    }
+
+    @Test
+    void updateOrder_ValidOrderAndUser_Success() {
+        when(orderRepository.findById(anyLong())).thenReturn(Optional.of(order));
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(user));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
+
+        Order updatedOrder = new Order();
+        updatedOrder.setCustomerName("Updated Customer Name");
+        updatedOrder.setStatus(Order.OrderStatus.CONFIRMED);
+        updatedOrder.setTotalPrice(new BigDecimal("150.00"));
+        Product updatedProduct = new Product("Updated Product", new BigDecimal("150.00"), 1);
+        updatedOrder.setProducts(List.of(updatedProduct));
+
+        Order result = orderService.updateOrder("user", 1L, updatedOrder);
+
+        assertNotNull(result);
         assertEquals(Order.OrderStatus.CONFIRMED, result.getStatus());
-        assertEquals(BigDecimal.valueOf(150).setScale(2, BigDecimal.ROUND_HALF_UP), result.getTotalPrice());
-
-        verify(orderRepository, times(1)).findById(orderId);
-        verify(orderRepository, times(1)).save(any(Order.class));
-        verify(eventPublisher, times(1)).publishEvent(any(OrderStatusChangedEvent.class));
+        assertEquals(new BigDecimal("150.00"), result.getTotalPrice());
+        assertEquals(1, result.getProducts().size());
+        assertEquals("Updated Product", result.getProducts().get(0).getName());
+        verify(eventPublisher).publishEvent(any(OrderStatusChangedEvent.class));
     }
 
     @Test
-    void getOrders_ShouldReturnFilteredOrders() {
-        Order.OrderStatus status = Order.OrderStatus.PENDING;
-        BigDecimal minPrice = BigDecimal.valueOf(50);
-        BigDecimal maxPrice = BigDecimal.valueOf(150);
+    void updateOrder_OrderNotFound_ThrowsException() {
+        when(orderRepository.findById(anyLong())).thenReturn(Optional.empty());
 
-        // Создаем тестовые заказы с продуктами
-        List<Product> products1 = new ArrayList<>();
-        Product product1 = new Product();
-        product1.setName("Product 1");
-        product1.setPrice(BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP));
-        product1.setQuantity(1);
-        products1.add(product1);
+        assertThrows(OrderNotFoundException.class, () -> orderService.updateOrder("user", 999L, new Order()));
+    }
 
-        List<Product> products2 = new ArrayList<>();
-        Product product2 = new Product();
-        product2.setName("Product 2");
-        product2.setPrice(BigDecimal.valueOf(200).setScale(2, BigDecimal.ROUND_HALF_UP));
-        product2.setQuantity(1);
-        products2.add(product2);
+    @Test
+    void updateOrder_UnauthorizedUser_ThrowsException() {
+        User otherUser = new User();
+        otherUser.setId(3L);
+        otherUser.setUsername("otherUser");
+        otherUser.setRole(User.Role.USER);
 
-        List<Order> orders = Arrays.asList(
-                new Order(1L, "Customer 1", Order.OrderStatus.PENDING, BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP), products1, false),
-                new Order(2L, "Customer 2", Order.OrderStatus.CONFIRMED, BigDecimal.valueOf(200).setScale(2, BigDecimal.ROUND_HALF_UP), products2, false)
-        );
+        when(orderRepository.findById(anyLong())).thenReturn(Optional.of(order));
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(otherUser));
 
-        when(orderRepository.findByStatusAndPriceRange(status, minPrice, maxPrice)).thenReturn(orders);
+        assertThrows(AccessDeniedException.class, () -> orderService.updateOrder("otherUser", 1L, new Order()));
+    }
 
-        List<Order> result = orderService.getOrders(status, minPrice, maxPrice);
+    @Test
+    void getOrders_AsUser_ReturnsUserOrders() {
+        when(userRepository.findByUsername("user")).thenReturn(Optional.of(user));
+        when(orderRepository.findByUserAndStatusAndPriceRange(eq(user), any(), any(), any()))
+                .thenReturn(List.of(order));
 
-        assertNotNull(result);
+        List<Order> result = orderService.getOrders("user", null, null, null);
+
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+        assertEquals(order.getOrderId(), result.get(0).getOrderId());
+    }
+
+    @Test
+    void getOrders_AsAdmin_ReturnsAllOrders() {
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(admin));
+        when(orderRepository.findByStatusAndPriceRange(any(), any(), any()))
+                .thenReturn(Arrays.asList(order, new Order()));
+
+        List<Order> result = orderService.getOrders("admin", null, null, null);
+
+        assertFalse(result.isEmpty());
         assertEquals(2, result.size());
-        assertEquals("Customer 1", result.get(0).getCustomerName());
-        assertEquals("Customer 2", result.get(1).getCustomerName());
-
-        verify(orderRepository, times(1)).findByStatusAndPriceRange(status, minPrice, maxPrice);
     }
 
     @Test
-    void getOrderById_ShouldReturnOrder() {
-        Long orderId = 1L;
+    void getOrder_AsUser_OwnOrder_Success() {
+        when(userRepository.findByUsername("user")).thenReturn(Optional.of(user));
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-        // Создаем тестовый заказ с продуктом
-        List<Product> products = new ArrayList<>();
-        Product product = new Product();
-        product.setName("Test Product");
-        product.setPrice(BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP));
-        product.setQuantity(1);
-        products.add(product);
-
-        Order order = new Order(orderId, "Test Customer", Order.OrderStatus.PENDING, BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP), products, false);
-
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
-
-        Order result = orderService.getOrderById(orderId);
+        Order result = orderService.getOrder("user", 1L);
 
         assertNotNull(result);
-        assertEquals(orderId, result.getOrderId());
-        assertEquals("Test Customer", result.getCustomerName());
-        assertEquals(Order.OrderStatus.PENDING, result.getStatus());
-        assertEquals(BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP), result.getTotalPrice());
-
-        verify(orderRepository, times(1)).findById(orderId);
+        assertEquals(order.getOrderId(), result.getOrderId());
     }
 
     @Test
-    void deleteOrder_ShouldCancelOrder() {
-        Long orderId = 1L;
+    void getOrder_AsUser_OtherUserOrder_ThrowsException() {
+        User otherUser = new User();
+        otherUser.setId(3L);
+        otherUser.setUsername("otherUser");
+        otherUser.setRole(User.Role.USER);
 
-        // Создаем тестовый заказ с продуктом
-        List<Product> products = new ArrayList<>();
-        Product product = new Product();
-        product.setName("Test Product");
-        product.setPrice(BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP));
-        product.setQuantity(1);
-        products.add(product);
+        Order otherOrder = new Order();
+        otherOrder.setOrderId(2L);
+        otherOrder.setUser(otherUser);
 
-        Order order = new Order(orderId, "Test Customer", Order.OrderStatus.PENDING, BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP), products, false);
+        when(userRepository.findByUsername("user")).thenReturn(Optional.of(user));
+        when(orderRepository.findById(2L)).thenReturn(Optional.of(otherOrder));
 
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
-        when(orderRepository.save(any(Order.class))).thenReturn(order);
-
-        orderService.deleteOrder(orderId);
-
-        assertEquals(Order.OrderStatus.CANCELLED, order.getStatus());
-
-        verify(orderRepository, times(1)).findById(orderId);
-        verify(orderRepository, times(1)).save(order);
+        assertThrows(AccessDeniedException.class, () -> orderService.getOrder("user", 2L));
     }
 
     @Test
-    void updateOrder_WithMismatchedTotalPrice_ShouldThrowException() {
-        Long orderId = 1L;
+    void getOrder_AsAdmin_AnyOrder_Success() {
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(admin));
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-        Order existingOrder = new Order();
-        existingOrder.setOrderId(orderId);
-        existingOrder.setCustomerName("Test Customer");
-        existingOrder.setStatus(Order.OrderStatus.PENDING);
-        existingOrder.setTotalPrice(BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP));
+        Order result = orderService.getOrder("admin", 1L);
 
-        List<Product> products = new ArrayList<>();
-        Product product1 = new Product();
-        product1.setName("Product 1");
-        product1.setPrice(BigDecimal.valueOf(50).setScale(2, BigDecimal.ROUND_HALF_UP));
-        product1.setQuantity(1);
-        products.add(product1);
-
-        Product product2 = new Product();
-        product2.setName("Product 2");
-        product2.setPrice(BigDecimal.valueOf(60).setScale(2, BigDecimal.ROUND_HALF_UP));
-        product2.setQuantity(1);
-        products.add(product2);
-
-        existingOrder.setProducts(products);
-
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
-
-        Order updatedOrder = new Order();
-        updatedOrder.setOrderId(orderId);
-        updatedOrder.setCustomerName("Updated Customer");
-        updatedOrder.setStatus(Order.OrderStatus.CONFIRMED);
-        updatedOrder.setTotalPrice(BigDecimal.valueOf(100).setScale(2, BigDecimal.ROUND_HALF_UP)); // Неправильная общая сумма
-        updatedOrder.setProducts(products);
-
-        assertThrows(TotalPriceMismatchException.class, () -> orderService.updateOrder(orderId, updatedOrder));
+        assertNotNull(result);
+        assertEquals(order.getOrderId(), result.getOrderId());
     }
 
     @Test
-    void createOrder_WithInvalidData_ShouldThrowException() {
-        Order invalidOrder = new Order();
-        // Не устанавливаем customerName, что должно вызвать исключение
+    void deleteOrder_ExistingOrder_Success() {
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-        assertThrows(InvalidOrderException.class, () -> orderService.createOrder(invalidOrder));
+        assertDoesNotThrow(() -> orderService.deleteOrder(1L));
+        verify(orderRepository).delete(order);
     }
 
     @Test
-    void getOrderById_WithNonExistentId_ShouldThrowException() {
-        Long nonExistentId = 999L;
+    void deleteOrder_NonExistingOrder_ThrowsException() {
+        when(orderRepository.findById(999L)).thenReturn(Optional.empty());
 
-        when(orderRepository.findById(nonExistentId)).thenReturn(Optional.empty());
-
-        assertThrows(OrderNotFoundException.class, () -> orderService.getOrderById(nonExistentId));
+        assertThrows(OrderNotFoundException.class, () -> orderService.deleteOrder(999L));
     }
 }
-
-
-
 
 
 

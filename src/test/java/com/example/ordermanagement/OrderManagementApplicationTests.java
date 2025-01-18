@@ -10,5 +10,6 @@ class OrderManagementApplicationTests {
 
     @Test
     void contextLoads() {
+        // Проверяет, что контекст приложения загружается корректно
     }
 }

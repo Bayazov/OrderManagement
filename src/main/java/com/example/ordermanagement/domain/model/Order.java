@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Data
-@NoArgsConstructor
 @AllArgsConstructor
 @Entity
 @Table(name = "orders")
@@ -24,6 +23,11 @@ public class Order {
 
     private String customerName;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+
+    private User user;
+
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
@@ -34,7 +38,7 @@ public class Order {
 
     private boolean deleted = false;
 
-    public Order(long l, String janeDoe, OrderStatus confirmed, BigDecimal valueOf, List<Product> products2) {
+    public Order() {
     }
 
     public enum OrderStatus {
@@ -68,7 +72,6 @@ public class Order {
         }
     }
 
-
     @Override
     public String toString() {
         return "Order{" +
@@ -80,6 +83,7 @@ public class Order {
                 ", deleted=" + deleted +
                 '}';
     }
+
 }
 
 

@@ -1,131 +1,120 @@
 package com.example.ordermanagement.application.service;
 
+import com.example.ordermanagement.domain.event.OrderStatusChangedEvent;
+import com.example.ordermanagement.domain.exception.InvalidOrderException;
+import com.example.ordermanagement.domain.exception.OrderNotFoundException;
 import com.example.ordermanagement.domain.exception.TotalPriceMismatchException;
 import com.example.ordermanagement.domain.model.Order;
-import com.example.ordermanagement.domain.model.Product;
+import com.example.ordermanagement.domain.model.User;
 import com.example.ordermanagement.domain.repository.OrderRepository;
-import com.example.ordermanagement.domain.event.OrderStatusChangedEvent;
+import com.example.ordermanagement.domain.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
 import java.util.List;
-import com.example.ordermanagement.domain.exception.OrderNotFoundException;
-import com.example.ordermanagement.domain.exception.InvalidOrderException;
 
 @Service
 public class OrderService {
     private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
 
     private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Autowired
-    public OrderService(OrderRepository orderRepository, ApplicationEventPublisher eventPublisher) {
+    public OrderService(OrderRepository orderRepository, UserRepository userRepository, ApplicationEventPublisher eventPublisher) {
         this.orderRepository = orderRepository;
+        this.userRepository = userRepository;
         this.eventPublisher = eventPublisher;
     }
 
+    // Создаем заказ
     @Transactional
-    @CacheEvict(value = "orders", allEntries = true)
-    public Order createOrder(Order order) {
-        logger.info("Creating new order for customer: {}", order.getCustomerName());
-        // Валидируем заказ
+    public Order createOrder(String username, Order order) {
+        logger.info("Creating order for user: {}", username);
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new InvalidOrderException("User not found"));
+        order.setUser(user);
         validateOrder(order);
-        order.setDeleted(false); // Устанавливаем флаг удаления в false при создании
         Order savedOrder = orderRepository.save(order);
         logger.info("Order created successfully with ID: {}", savedOrder.getOrderId());
         return savedOrder;
     }
 
+    // Обновляем заказ
     @Transactional
-    @CacheEvict(value = "orders", key = "#id")
-    public Order updateOrder(Long id, Order order) {
-        logger.info("Updating order with ID: {}", id);
-        validateOrder(order);
+    public Order updateOrder(String username, Long orderId, Order updatedOrder) {
+        logger.info("Updating order with ID: {} for user: {}", orderId, username);
+        Order existingOrder = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
 
-        Order existingOrder = orderRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.error("Order not found with ID: {}", id);
-                    return new OrderNotFoundException(id);
-                });
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new InvalidOrderException("User not found"));
+
+        if (!existingOrder.getUser().getId().equals(user.getId()) && user.getRole() != User.Role.ADMIN) {
+            throw new AccessDeniedException("You don't have permission to update this order");
+        }
 
         Order.OrderStatus oldStatus = existingOrder.getStatus();
 
-        existingOrder.setCustomerName(order.getCustomerName());
-        existingOrder.setStatus(order.getStatus());
-        existingOrder.setTotalPrice(order.getTotalPrice());
+        existingOrder.setCustomerName(updatedOrder.getCustomerName());
+        existingOrder.setStatus(updatedOrder.getStatus());
+        existingOrder.setTotalPrice(updatedOrder.getTotalPrice());
+        existingOrder.updateProducts(updatedOrder.getProducts());
 
-        existingOrder.updateProducts(order.getProducts());
+        validateOrder(existingOrder);
 
-        Order updatedOrder = orderRepository.save(existingOrder);
-        logger.info("Order updated successfully with ID: {}", updatedOrder.getOrderId());
+        Order savedOrder = orderRepository.save(existingOrder);
+        logger.info("Order updated successfully with ID: {}", savedOrder.getOrderId());
 
-        if (oldStatus != updatedOrder.getStatus()) {
-            OrderStatusChangedEvent event = new OrderStatusChangedEvent(updatedOrder.getOrderId(), oldStatus, updatedOrder.getStatus());
+        if (oldStatus != savedOrder.getStatus()) {
+            OrderStatusChangedEvent event = new OrderStatusChangedEvent(savedOrder.getOrderId(), oldStatus, savedOrder.getStatus());
             eventPublisher.publishEvent(event);
-            logger.info("Published order status changed event for order ID: {}", updatedOrder.getOrderId());
+            logger.info("Published order status changed event for order ID: {}", savedOrder.getOrderId());
         }
 
-        return updatedOrder;
+        return savedOrder;
     }
 
-
-
-
-
-
-
-
-
-
-
-
-    @Cacheable(value = "orders")
-    public List<Order> getOrders(Order.OrderStatus status, BigDecimal minPrice, BigDecimal maxPrice) {
-        logger.info("Fetching orders with status: {}, minPrice: {}, maxPrice: {}", status, minPrice, maxPrice);
-        // Получаем список заказов с фильтрацией
-        return orderRepository.findByStatusAndPriceRange(status, minPrice, maxPrice);
+    // Получаем список заказов
+    public List<Order> getOrders(String username, Order.OrderStatus status, BigDecimal minPrice, BigDecimal maxPrice) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new InvalidOrderException("User not found"));
+        if (user.getRole() == User.Role.ADMIN) {
+            return orderRepository.findByStatusAndPriceRange(status, minPrice, maxPrice);
+        } else {
+            return orderRepository.findByUserAndStatusAndPriceRange(user, status, minPrice, maxPrice);
+        }
     }
 
-    @Cacheable(value = "orders", key = "#id")
-    public Order getOrderById(Long id) {
-        logger.info("Fetching order with ID: {}", id);
-        // Получаем заказ по ID
-        return orderRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.error("Order not found with ID: {}", id);
-                    return new OrderNotFoundException(id);
-                });
+    // Получаем конкретный заказ
+    public Order getOrder(String username, Long orderId) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new InvalidOrderException("User not found"));
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        if (user.getRole() == User.Role.ADMIN || order.getUser().getId().equals(user.getId())) {
+            return order;
+        } else {
+            throw new AccessDeniedException("You don't have permission to access this order");
+        }
     }
 
+    // Удаляем заказ
     @Transactional
-    @CacheEvict(value = "orders", key = "#id")
-    public void deleteOrder(Long id) {
-        logger.info("Deleting order with ID: {}", id);
-        // Находим заказ по ID
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.error("Order not found with ID: {}", id);
-                    return new OrderNotFoundException(id);
-                });
-        // Устанавливаем статус "CANCELLED" и помечаем как удаленный
-        order.setStatus(Order.OrderStatus.CANCELLED);
-        order.setDeleted(true);
-        // Сохраняем обновленный заказ
-        orderRepository.save(order);
-        logger.info("Order deleted successfully with ID: {}", id);
+    public void deleteOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        orderRepository.delete(order);
+        logger.info("Order deleted successfully with ID: {}", orderId);
     }
 
-
+    // Проверяем валидность заказа
     private void validateOrder(Order order) {
         if (order == null) {
             throw new InvalidOrderException("Order cannot be null");
@@ -145,16 +134,9 @@ public class OrderService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal orderTotalPrice = order.getTotalPrice().setScale(2, RoundingMode.HALF_UP);
-
-        if (order.getTotalPrice() == null || !orderTotalPrice.equals(calculatedTotal)) {
-            throw new TotalPriceMismatchException("Total price does not match the sum of product prices. Expected: " + calculatedTotal + ", but got: " + orderTotalPrice);
+        if (order.getTotalPrice() == null || !order.getTotalPrice().setScale(2, RoundingMode.HALF_UP).equals(calculatedTotal)) {
+            throw new TotalPriceMismatchException("Total price does not match the sum of product prices");
         }
     }
 }
-
-
-
-
-
 
