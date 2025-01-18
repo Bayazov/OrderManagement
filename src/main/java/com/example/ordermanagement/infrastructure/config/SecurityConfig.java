@@ -39,7 +39,10 @@ public class SecurityConfig {
                         .requestMatchers("/metrics").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
-                .httpBasic(basic -> {});
+
+                .httpBasic(basic -> {
+                });  // Используем новый синтаксис
+
 
         return http.build();
     }
@@ -49,6 +52,7 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {

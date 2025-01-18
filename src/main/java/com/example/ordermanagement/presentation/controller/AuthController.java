@@ -10,15 +10,11 @@ package com.example.ordermanagement.presentation.controller;
 public class AuthController {
 
     @PostMapping("/login")
-    public ResponseEntity<String> login() {
-        // Проверяем, что объект authentication не null и пользователь аутентифицирован
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            return ResponseEntity.ok("User authenticated: " + authentication.getName());
-        } else {
-            return ResponseEntity.status(401).body("Authentication failed");
+    public ResponseEntity<String> login(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Authentication required");
         }
+        return ResponseEntity.ok("User authenticated: " + authentication.getName());
     }
 }
-
 
