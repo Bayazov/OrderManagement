@@ -2,6 +2,9 @@ package com.example.ordermanagement.presentation.dto;
 
 import com.example.ordermanagement.domain.model.Order;
 import com.example.ordermanagement.domain.model.Product;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -12,23 +15,30 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Data
+@Schema(description = "Order Data Transfer Object")
 public class OrderDTO {
+    @Schema(hidden = true)
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Long orderId;
 
     @NotNull(message = "Customer name cannot be null")
     @NotBlank(message = "Customer name cannot be blank")
     @Size(max = 100, message = "Customer name must not exceed 100 characters")
+    @Schema(description = "Customer name", example = "John Doe", required = true)
     private String customerName;
 
     @NotNull(message = "Status cannot be null")
+    @Schema(description = "Order status", example = "PENDING", required = true)
     private String status;
 
     @NotNull(message = "Total price cannot be null")
     @Positive(message = "Total price must be positive")
+    @Schema(description = "Total price of the order", example = "99.99", required = true)
     private BigDecimal totalPrice;
 
     @NotNull(message = "Products cannot be null")
     @Size(min = 1, message = "Order must contain at least one product")
+    @Schema(description = "List of products in the order", required = true)
     private List<ProductDTO> products;
 
     // Convert DTO to Entity
@@ -77,4 +87,9 @@ public class OrderDTO {
         return dto;
     }
 }
+
+
+
+
+
 

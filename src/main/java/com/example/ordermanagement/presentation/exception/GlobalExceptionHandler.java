@@ -2,6 +2,7 @@ package com.example.ordermanagement.presentation.exception;
 
 import com.example.ordermanagement.domain.exception.OrderNotFoundException;
 import com.example.ordermanagement.domain.exception.InvalidOrderException;
+import com.example.ordermanagement.domain.exception.TotalPriceMismatchException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -28,6 +29,13 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(TotalPriceMismatchException.class)
+    public ResponseEntity<Object> handleTotalPriceMismatchException(TotalPriceMismatchException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", ex.getMessage());
+        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Object> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -36,4 +44,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
     }
 }
+
+
 
