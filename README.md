@@ -48,7 +48,7 @@ The API uses Basic Authentication. Use the following credentials:
 For admin access:
 
 - Username: admin
-- Password: admin
+- Password: password
 
 ## Running Tests
 
